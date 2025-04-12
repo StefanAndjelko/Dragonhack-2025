@@ -37,6 +37,9 @@
         <activity
             android:name=".ui.SplashActivity"
             android:exported="false"/>
+        <activity
+            android:name=".ui.LandmarkDetailsActivity"
+            android:exported="false"/>
 
         <!-- FileProvider configuration -->
         <provider
