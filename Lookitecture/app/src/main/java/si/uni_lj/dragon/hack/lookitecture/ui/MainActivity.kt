@@ -33,6 +33,10 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * MainActivity for the Lookitecture application
+ * Displays a photo capture screen that allows users to take or upload photos
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,49 +53,69 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Screen that allows users to capture or upload photos
+ * Displays the selected image in high quality
+ */
 @Composable
 fun PhotoCaptureScreen() {
-    // State to hold the image URI
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    // ---- STATE ----
+    // Image that will be displayed
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    // Current URI for camera captures
+    var currentCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Get local context
+    // ---- CONTEXT ----
     val context = LocalContext.current
 
-    // Image file for camera capture
-    val imageFile = remember { createImageFile(context) }
-    val cameraImageUri = remember {
-        FileProvider.getUriForFile(
+    // ---- FUNCTIONS ----
+    // Creates a new URI for camera captures
+    fun prepareNewCameraUri(): Uri {
+        val newImageFile = createImageFile(context)
+        return FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
-            imageFile
+            newImageFile
         )
     }
 
+    // ---- ACTIVITY LAUNCHERS ----
+    // Launcher for taking photos with the camera
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) {
-            imageUri = cameraImageUri
+        // If the photo was taken successfully, update the displayed image
+        if (success && currentCameraUri != null) {
+            selectedImageUri = currentCameraUri
         }
     }
 
+    // Takes a photo using the camera
+    fun takePhoto() {
+        // Create a new URI for this photo
+        currentCameraUri = prepareNewCameraUri()
+        // Launch camera with this URI
+        currentCameraUri?.let { takePictureLauncher.launch(it) }
+    }
+
+    // Launcher for requesting camera permission
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            takePictureLauncher.launch(cameraImageUri)
+    ) { isPermissionGranted ->
+        if (isPermissionGranted) {
+            takePhoto()
         }
     }
 
-    // Pick image from gallery launcher
-    val pickImageLauncher = rememberLauncherForActivityResult(
+    // Launcher for selecting images from gallery
+    val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { // Added null check for safety
-            imageUri = uri
-        }
+        // Update the displayed image with the selected gallery image
+        uri?.let { selectedImageUri = it }
     }
 
+    // ---- UI ----
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -99,7 +123,7 @@ fun PhotoCaptureScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Title
+        // App title
         Text(
             text = "Lookitecture",
             style = MaterialTheme.typography.headlineMedium,
@@ -107,10 +131,11 @@ fun PhotoCaptureScreen() {
             modifier = Modifier.padding(vertical = 16.dp)
         )
 
-        // Image Display Area
+        // Image display area - Pass weight as a parameter
+        // The Box needs to be part of the Column, which provides the weight scope
         Box(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f) // Weight is correctly used within the Column scope
                 .fillMaxWidth()
                 .padding(8.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -122,77 +147,103 @@ fun PhotoCaptureScreen() {
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (imageUri != null) {
-                // Display the selected or captured image
+            if (selectedImageUri != null) {
+                // Display the selected image
                 Image(
-                    painter = rememberAsyncImagePainter(imageUri),
+                    painter = rememberAsyncImagePainter(model = selectedImageUri),
                     contentDescription = "Selected Image",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
             } else {
-                // Placeholder when no image is selected
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_photo_placeholder),
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "No image selected",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
+                // Display a placeholder
+                ImagePlaceholder()
             }
         }
 
-        // Buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // Take Photo button
-            Button(
-                onClick = {
-                    when (PackageManager.PERMISSION_GRANTED) {
-                        ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.CAMERA
-                        ) -> takePictureLauncher.launch(cameraImageUri)
-                        else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .padding(end = 8.dp)
-            ) {
-                Text("Take Photo")
+        // Action buttons
+        ActionButtons(
+            onTakePhotoClick = {
+                // Check for camera permission before taking photo
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED) {
+                    takePhoto()
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            },
+            onUploadPhotoClick = {
+                galleryLauncher.launch("image/*")
             }
+        )
+    }
+}
 
-            // Upload Photo button
-            Button(
-                onClick = { pickImageLauncher.launch("image/*") },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .padding(start = 8.dp)
-            ) {
-                Text("Upload Photo")
-            }
+/**
+ * Placeholder shown when no image is selected
+ */
+@Composable
+fun ImagePlaceholder() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_photo_placeholder),
+            contentDescription = null,
+            modifier = Modifier.size(72.dp),
+            tint = Color.Gray
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "No image selected",
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+/**
+ * Action buttons for taking or uploading photos
+ */
+@Composable
+fun ActionButtons(
+    onTakePhotoClick: () -> Unit,
+    onUploadPhotoClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        // Take Photo button
+        Button(
+            onClick = onTakePhotoClick,
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .padding(end = 8.dp)
+        ) {
+            Text("Take Photo")
+        }
+
+        // Upload Photo button
+        Button(
+            onClick = onUploadPhotoClick,
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .padding(start = 8.dp)
+        ) {
+            Text("Upload Photo")
         }
     }
 }
 
-// Helper function to create a temporary image file
+/**
+ * Creates a temporary file for storing camera images
+ */
 private fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val imageFileName = "JPEG_${timeStamp}_"
