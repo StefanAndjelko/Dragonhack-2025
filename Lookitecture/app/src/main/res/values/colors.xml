@@ -7,4 +7,21 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Primary brand color -->
+    <color name="colorPrimary">#E65100</color>
+    <color name="colorPrimaryVariant">#BF360C</color>
+
+    <!-- Secondary brand color -->
+    <color name="colorSecondary">#004D40</color>
+    <color name="colorSecondaryVariant">#00251A</color>
+
+    <!-- Backgrounds & surfaces -->
+    <color name="colorBackground">#121212</color>
+    <color name="colorSurface">#1E1E1E</color>
+
+    <!-- Text/Icon Colors on top of backgrounds -->
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="colorOnBackground">#E0E0E0</color>
+    <color name="colorOnSurface">#E0E0E0</color>
 </resources>

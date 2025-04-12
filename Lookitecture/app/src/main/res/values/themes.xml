@@ -13,4 +13,12 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+
+    <style name="Theme.Lookitecture.Splash" parent="Theme.SplashScreen">
+        <!-- Optional: Customize the splash screen -->
+        <item name="windowSplashScreenBackground">@color/colorPrimary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/building</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/colorPrimary</item>
+        <item name="postSplashScreenTheme">@style/Theme.Lookitecture</item>
+    </style>
 </resources>
