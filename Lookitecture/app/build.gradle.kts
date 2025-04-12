@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -63,4 +64,6 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-livedata")
     // Integration with RxJava
     implementation("androidx.compose.runtime:runtime-rxjava2")
+
+    implementation("androidx.core:core-splashscreen:1.0.0")
 }
