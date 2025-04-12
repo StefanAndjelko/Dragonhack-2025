@@ -66,4 +66,10 @@ dependencies {
     implementation("androidx.compose.runtime:runtime-rxjava2")
 
     implementation("androidx.core:core-splashscreen:1.0.0")
+
+    // OkHttp for network requests
+    implementation ("com.squareup.okhttp3:okhttp:4.10.0")
+    // Coroutines for asynchronous operations
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 }
