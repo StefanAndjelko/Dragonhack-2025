@@ -16,11 +16,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.animation.doOnEnd
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -128,6 +130,14 @@ fun PhotoCaptureScreen() {
         currentCameraUri?.let { takePictureLauncher.launch(it) }
     }
 
+    // Navigate to landmark details
+    fun navigateToLandmarkDetails(imageUri: Uri) {
+        val intent = Intent(context, LandmarkDetailsActivity::class.java).apply {
+            putExtra("IMAGE_URI", imageUri.toString())
+        }
+        context.startActivity(intent)
+    }
+
     // Launcher for requesting camera permission
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -161,11 +171,10 @@ fun PhotoCaptureScreen() {
             modifier = Modifier.padding(vertical = 16.dp)
         )
 
-        // Image display area - Pass weight as a parameter
-        // The Box needs to be part of the Column, which provides the weight scope
+        // Image display area - With click to navigate
         Box(
             modifier = Modifier
-                .weight(1f) // Weight is correctly used within the Column scope
+                .weight(1f)
                 .fillMaxWidth()
                 .padding(8.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -174,6 +183,12 @@ fun PhotoCaptureScreen() {
                     width = 1.dp,
                     color = Color.LightGray,
                     shape = RoundedCornerShape(12.dp)
+                )
+                .clickable(
+                    enabled = selectedImageUri != null,
+                    onClick = {
+                        selectedImageUri?.let { navigateToLandmarkDetails(it) }
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -185,6 +200,22 @@ fun PhotoCaptureScreen() {
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
+
+                // Add a hint to tap for details
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = "Tap image to view landmark details",
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             } else {
                 // Display a placeholder
                 ImagePlaceholder()
@@ -229,6 +260,13 @@ fun ImagePlaceholder() {
             "No image selected",
             color = Color.Gray,
             style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Take or upload a photo of a landmark",
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center
         )
     }
 }
