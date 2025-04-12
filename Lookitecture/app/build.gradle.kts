@@ -16,6 +16,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY") ?: ""}\"")
+
+
     }
 
     buildTypes {
@@ -32,6 +35,7 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -72,4 +76,8 @@ dependencies {
     // Coroutines for asynchronous operations
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+
+    implementation ("io.coil-kt:coil-compose:2.4.0")
+    implementation ("androidx.activity:activity-compose:1.7.2")
+    implementation ("androidx.compose.material3:material3:1.1.1")
 }
