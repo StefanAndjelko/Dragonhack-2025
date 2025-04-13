@@ -33,6 +33,9 @@ Your **personal, on-the-go tourist guide**, powered by AI and offline capability
 - **View History**  
   All scanned landmarks are saved locally, allowing users to revisit past discoveries.
 
+- **Visited locations on map**
+  All visited locations are marked on the map, allowing you to easily track your travel journey.
+
 ## Future Plans
 
 - **Architectural Style Recognition**  
@@ -53,6 +56,10 @@ Your **personal, on-the-go tourist guide**, powered by AI and offline capability
 - **Material3 UI**  
 
 ## Screenshots
+![Screenshot](Images/image.png)
+![Screenshot](Images/image_taken.png)
+![Screenshot](Images/information.png)
+![Screenshot](Images/history.png)
 
 *Coming soon!*
 
