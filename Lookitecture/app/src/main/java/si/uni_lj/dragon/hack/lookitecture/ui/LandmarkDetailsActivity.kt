@@ -112,19 +112,16 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                         // Fall back to API if not found in history
                                         Log.d("LandmarkDetailsActivity", "Not found in history, fetching from API: $landmarkName")
                                         val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
-                                        // Enhanced with coordinates
-                                        landmarkData = apiData.copy(
-                                            coordinates = getCoordinatesForLandmark(landmarkName)
-                                        )
+                                        // API data already includes coordinates
+                                        landmarkData = apiData
+                                        Log.d("LandmarkDetailsActivity", "Got API data with coordinates: ${apiData.coordinates}")
                                     }
                                 } else {
                                     // New capture - get landmark data from API
                                     Log.d("LandmarkDetailsActivity", "Fetching from API: $landmarkName")
                                     val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
-                                    // Enhanced with coordinates
-                                    landmarkData = apiData.copy(
-                                        coordinates = getCoordinatesForLandmark(landmarkName)
-                                    )
+                                    landmarkData = apiData
+                                    Log.d("LandmarkDetailsActivity", "Got API data with coordinates: ${apiData.coordinates}")
                                 }
                             } catch (e: Exception) {
                                 Log.e("LandmarkDetailsActivity", "Error fetching landmark data", e)
@@ -186,30 +183,24 @@ class LandmarkDetailsActivity : ComponentActivity() {
         }
     }
 
-    private fun getCoordinatesForLandmark(landmarkName: String): Pair<Double, Double> {
-        // This would normally come from an API or database
-        // Using hardcoded values for demonstration
-        return when (landmarkName) {
-            "Eiffel Tower" -> Pair(48.8584, 2.2945)
-            "Great Wall of China" -> Pair(40.4319, 116.5704)
-            "Statue of Liberty" -> Pair(40.6892, -74.0445)
-            "Taj Mahal" -> Pair(27.1751, 78.0421)
-            "Colosseum" -> Pair(41.8902, 12.4922)
-            // Add more landmark coordinates
-            "Sydney Opera House" -> Pair(-33.8568, 151.2153)
-            "Burj Khalifa" -> Pair(25.1972, 55.2744)
-            "Empire State Building" -> Pair(40.7484, -73.9857)
-            "Leaning Tower of Pisa" -> Pair(43.7230, 10.3966)
-            "Machu Picchu" -> Pair(-13.1631, -72.5450)
-            else -> Pair(0.0, 0.0) // Default - will still open maps at (0,0)
-        }
-    }
-
     private fun openMap(latitude: Double, longitude: Double, landmarkName: String) {
         try {
+            Log.d("LandmarkDetailsActivity", "Opening map with coordinates: lat=$latitude, lng=$longitude")
+            
             // Use URI encoding for the landmark name to handle special characters
             val encodedName = java.net.URLEncoder.encode(landmarkName, "UTF-8")
-            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($encodedName)")
+            
+            // Check if we have valid coordinates (not both 0,0)
+            val useCoordinates = latitude != 0.0 || longitude != 0.0
+            
+            // If we don't have coordinates, just search by name
+            val gmmIntentUri = if (useCoordinates) {
+                Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($encodedName)")
+            } else {
+                // Fallback to searching by name if no coordinates
+                Uri.parse("geo:0,0?q=$encodedName")
+            }
+            
             val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
             mapIntent.setPackage("com.google.android.apps.maps")
 
@@ -218,7 +209,11 @@ class LandmarkDetailsActivity : ComponentActivity() {
                 startActivity(mapIntent)
             } else {
                 // Fallback to browser if Google Maps isn't installed
-                val browserUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+                val browserUri = if (useCoordinates) {
+                    Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+                } else {
+                    Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedName")
+                }
                 val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
                 startActivity(browserIntent)
             }
