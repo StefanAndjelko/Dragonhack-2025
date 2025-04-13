@@ -50,8 +50,7 @@ import si.uni_lj.dragon.hack.lookitecture.util.LandmarkHistoryManager
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Define the theme colors based on the provided color #459282
-val PrimaryColor = Color(0xFF459282)
+val PrimaryColor = Color(0xFF6097BC)
 val LighterPrimaryColor = Color(0xFF5BA99A)
 val DarkerPrimaryColor = Color(0xFF367A6C)
 val BackgroundColor = Color(0xFFF9FCFB)
@@ -75,7 +74,7 @@ class HistoryActivity : ComponentActivity() {
                     onPrimary = Color.White,
                     background = BackgroundColor,
                     surface = SurfaceColor,
-                    surfaceVariant = Color(0xFFE1EBE8)
+                    surfaceVariant = Color(0xfffa7850)
                 )
             ) {
                 Surface(
@@ -138,7 +137,7 @@ fun HistoryScreen() {
                 TopAppBar(
                     title = { 
                         Text(
-                            "Viewing History",
+                            "Your history",
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
                         ) 

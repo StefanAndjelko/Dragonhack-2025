@@ -23,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
@@ -31,6 +32,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -58,17 +60,13 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
     private var detectedLandmarkName by mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        splashScreen.setOnExitAnimationListener { splashScreenView -> // Create your custom animation.
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
             val slideUp = ObjectAnimator.ofFloat(
                 splashScreenView, View.TRANSLATION_Y, 0f, -splashScreenView.height.toFloat()
             )
             slideUp.interpolator = AnticipateInterpolator()
             slideUp.duration = 500L
-
-            // Call SplashScreenView.remove at the end of your custom animation.
             slideUp.doOnEnd { splashScreenView.remove() }
-
-            // Run your animation.
             slideUp.start()
         }
         super.onCreate(savedInstanceState)
@@ -78,16 +76,25 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
         )
         setContent {
             MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    PhotoCaptureScreen(
-                        imageClassifierHelper = imageClassifierHelper,
-                        classificationResult = classificationResult,
-                        detectedLandmarkName = detectedLandmarkName,
-                        onClearResult = { classificationResult = "" }
+                Box(modifier = Modifier.fillMaxSize()
+                    .background(Color.LightGray.copy(alpha = 0.7f))) {
+
+                    Image(
+                        painter = painterResource(id = R.drawable.main_background),
+                        contentDescription = "Background Image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillBounds
                     )
+
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color.Transparent
+                    ) {
+                        PhotoCaptureScreen(imageClassifierHelper = imageClassifierHelper,
+                            classificationResult = classificationResult,
+                            detectedLandmarkName = detectedLandmarkName,
+                            onClearResult = { classificationResult = "" })
+                    }
                 }
             }
         }
@@ -96,7 +103,6 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
     override fun onResults(results: List<Classifications>?, inferenceTime: Long) {
         val topResult = results?.firstOrNull()?.categories?.firstOrNull()
         if (topResult != null) {
-            // Extract landmark name from the label
             detectedLandmarkName = topResult.label
             classificationResult = "Prediction: ${topResult.label} (${(topResult.score * 100).toInt()}%)\nTook ${inferenceTime}ms"
         } else {
@@ -114,6 +120,7 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
  * Screen that allows users to capture or upload photos
  * Displays the selected image in high quality
  */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoCaptureScreen(
@@ -128,11 +135,10 @@ fun PhotoCaptureScreen(
     // Current URI for camera captures
     var currentCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // ---- CONTEXT ----
+
     val context = LocalContext.current
 
-    // ---- FUNCTIONS ----
-    // Creates a new URI for camera captures
+
     fun prepareNewCameraUri(): Uri {
         val newImageFile = createImageFile(context)
         return FileProvider.getUriForFile(
@@ -142,25 +148,20 @@ fun PhotoCaptureScreen(
         )
     }
 
-    // Launcher for taking photos with the camera
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        // If the photo was taken successfully, update the displayed image
         if (success && currentCameraUri != null) {
             selectedImageUri = currentCameraUri
         }
     }
 
-    // Takes a photo using the camera
     fun takePhoto() {
-        // Create a new URI for this photo
         currentCameraUri = prepareNewCameraUri()
-        // Launch camera with this URI
         currentCameraUri?.let { takePictureLauncher.launch(it) }
     }
 
-    // Navigate to landmark details
+
     fun navigateToLandmarkDetails(imageUri: Uri) {
         val intent = Intent(context, LandmarkDetailsActivity::class.java).apply {
             putExtra("IMAGE_URI", imageUri.toString())
@@ -169,7 +170,6 @@ fun PhotoCaptureScreen(
         context.startActivity(intent)
     }
 
-    // Navigate to history
     fun navigateToHistory() {
         try {
             val intent = Intent(context, HistoryActivity::class.java)
@@ -180,7 +180,6 @@ fun PhotoCaptureScreen(
         }
     }
 
-    // Launcher for requesting camera permission
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isPermissionGranted ->
@@ -198,7 +197,6 @@ fun PhotoCaptureScreen(
     }
 
     LaunchedEffect(selectedImageUri) {
-        // You can place your logic here, such as logging or updating some other state
         if (selectedImageUri != null) {
 //            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, currentCameraUri)
             val source = ImageDecoder.createSource(context.contentResolver, selectedImageUri!!)
@@ -209,39 +207,43 @@ fun PhotoCaptureScreen(
     }
 
     // ---- UI ----
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Lookitecture") },
-                actions = {
-                    // History button
-                    IconButton(onClick = { navigateToHistory() }) {
-                        Icon(Icons.Default.History, contentDescription = "View History")
-                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text("") },
+            actions = {
+                IconButton(onClick = { navigateToHistory() }) {
+                    Icon(Icons.Default.History, contentDescription = "View History")
                 }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                titleContentColor = Color.White,
+                actionIconContentColor = Color.White
             )
-        }
-    ) { paddingValues ->
+        )
+
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = 56.dp)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Image display area - With click to navigate
+
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(8.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.LightGray.copy(alpha = 0.2f))
-                    .border(
-                        width = 1.dp,
-                        color = Color.LightGray,
-                        shape = RoundedCornerShape(12.dp)
+                    .then(
+                        if (selectedImageUri != null) {
+                            Modifier.background(Color(0xFF769AB2), RoundedCornerShape(12.dp))
+                        } else {
+                            Modifier
+                        }
                     )
                     .clickable(
                         enabled = selectedImageUri != null,
@@ -252,15 +254,24 @@ fun PhotoCaptureScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImageUri != null) {
-                    // Display the selected image
+
                     Image(
                         painter = rememberAsyncImagePainter(model = selectedImageUri),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = 8.dp,
+                                    bottomEnd = 8.dp
+                                )
+                            ),
                         contentDescription = "Selected Image",
-                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
 
-                    // Add a hint to tap for details
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -275,16 +286,12 @@ fun PhotoCaptureScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                } else {
-                    // Display a placeholder
-                    ImagePlaceholder()
                 }
             }
 
-            // Action buttons
+
             ActionButtons(
                 onTakePhotoClick = {
-                    // Check for camera permission before taking photo
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
                         == PackageManager.PERMISSION_GRANTED
                     ) {
@@ -316,9 +323,7 @@ fun PhotoCaptureScreen(
     }
 }
 
-/**
- * Placeholder shown when no image is selected
- */
+
 @Composable
 fun ImagePlaceholder() {
     Column(
@@ -347,55 +352,72 @@ fun ImagePlaceholder() {
     }
 }
 
-/**
- * Action buttons for taking or uploading photos
- */
+
 @Composable
 fun ActionButtons(
     onTakePhotoClick: () -> Unit,
     onUploadPhotoClick: () -> Unit,
     onViewHistoryClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+
+    val buttonColor = Color( 0xfffa7850)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceAround
     ) {
-        // Camera and gallery buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // Take Photo button
-            Button(
-                onClick = onTakePhotoClick,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .padding(end = 8.dp)
-            ) {
-                Text("Take Photo")
-            }
+        CircularIconButton(
+            onClick = onTakePhotoClick,
+            icon = R.drawable.icon_camera,
+            contentDescription = "Take Photo",
+            backgroundColor = buttonColor
+        )
 
-            // Upload Photo button
-            Button(
-                onClick = onUploadPhotoClick,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .padding(start = 8.dp)
-            ) {
-                Text("Upload Photo")
-            }
-        }
-
+        CircularIconButton(
+            onClick = onUploadPhotoClick,
+            icon = R.drawable.icon_arrow_up,
+            contentDescription = "Upload Photo",
+            backgroundColor = buttonColor
+        )
     }
 }
 
-/**
- * Creates a temporary file for storing camera images
- */
+@Composable
+fun CircularIconButton(
+    onClick: () -> Unit,
+    icon: Int,
+    contentDescription: String,
+    backgroundColor: Color
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .size(72.dp)
+            .aspectRatio(1f)
+            .shadow(
+                elevation = 8.dp,
+                shape = CircleShape,
+                spotColor = Color.Gray.copy(alpha = 0.3f)
+            )
+            .border(
+                width = 2.dp,
+                color = Color(0xFF5E7B8E),
+                shape = CircleShape
+            ),
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(containerColor = backgroundColor)
+    ) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = contentDescription,
+            tint = Color.White,
+            modifier = Modifier.size(32.dp)
+        )
+    }
+}
+
 private fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val imageFileName = "JPEG_${timeStamp}_"
