@@ -1,8 +1,5 @@
 package si.uni_lj.dragon.hack.lookitecture.ui
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -17,7 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.launch
+import si.uni_lj.dragon.hack.lookitecture.services.LandmarkApiService
 import si.uni_lj.dragon.hack.lookitecture.util.HistoryLandmarkData
 import si.uni_lj.dragon.hack.lookitecture.util.LandmarkHistoryManager
 import java.io.File
@@ -43,11 +42,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
         // Check if coming from history or new capture
         val fromHistory = intent.getBooleanExtra("FROM_HISTORY", false)
-        val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: "Eiffel Tower"
-
-        // For demonstration, always show Eiffel Tower data
-        // In a real app, you would have different landmark data based on recognition
-        val landmarkData = getLandmarkData(landmarkName)
+        val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: "Great Wall of China"
 
         setContent {
             MaterialTheme {
@@ -55,20 +50,84 @@ class LandmarkDetailsActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LandmarkDetailsScreen(
-                        imageUri = imageUri,
-                        landmarkData = landmarkData,
-                        fromHistory = fromHistory,
-                        onSaveToHistory = {
-                            // Save to history when "Okay" is clicked
-                            if (imageUriString != null) {
-                                saveLandmarkToHistory(landmarkData, imageUriString)
-                                Toast.makeText(this, "Added to history", Toast.LENGTH_SHORT).show()
+                    // Using state to hold landmark data while loading
+                    var landmarkData by remember { mutableStateOf<LandmarkData?>(null) }
+                    var isLoading by remember { mutableStateOf(true) }
+                    val coroutineScope = rememberCoroutineScope()
+                    
+                    // Load data from history or API as appropriate
+                    LaunchedEffect(landmarkName) {
+                        isLoading = true
+                        coroutineScope.launch {
+                            try {
+                                if (fromHistory) {
+                                    // First try to get data from history
+                                    val historyData = LandmarkHistoryManager.getLandmarkFromHistory(
+                                        this@LandmarkDetailsActivity, 
+                                        landmarkName
+                                    )
+                                    
+                                    if (historyData != null) {
+                                        // Convert history data to landmark data
+                                        landmarkData = LandmarkData(
+                                            name = historyData.name,
+                                            location = historyData.location,
+                                            architectureStyle = historyData.architectureStyle,
+                                            yearBuilt = historyData.yearBuilt,
+                                            height = historyData.height,
+                                            description = historyData.description,
+                                            interestingFacts = historyData.interestingFacts
+                                        )
+                                        Log.d("LandmarkDetailsActivity", "Loaded from history: ${historyData.name}")
+                                    } else {
+                                        // Fall back to API if not found in history
+                                        Log.d("LandmarkDetailsActivity", "Not found in history, fetching from API: $landmarkName")
+                                        landmarkData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                    }
+                                } else {
+                                    // New capture - get landmark data from API
+                                    landmarkData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("LandmarkDetailsActivity", "Error fetching landmark data", e)
+                                // Fallback to basic data if API fails
+                                landmarkData = LandmarkData(
+                                    name = landmarkName,
+                                    location = "Information unavailable",
+                                    architectureStyle = "Information unavailable",
+                                    yearBuilt = "Information unavailable",
+                                    height = "Information unavailable",
+                                    description = "Unable to load landmark information. Please check your internet connection.",
+                                    interestingFacts = listOf("Information unavailable")
+                                )
+                            } finally {
+                                isLoading = false
                             }
-                            finish()
-                        },
-                        onBack = { finish() }
-                    )
+                        }
+                    }
+
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                    } else {
+                        landmarkData?.let { data ->
+                            LandmarkDetailsScreen(
+                                imageUri = imageUri,
+                                landmarkData = data,
+                                fromHistory = fromHistory,
+                                onSaveToHistory = {
+                                    // Save to history when "Okay" is clicked
+                                    if (imageUriString != null) {
+                                        saveLandmarkToHistory(data, imageUriString)
+                                        Toast.makeText(this@LandmarkDetailsActivity, "Added to history", Toast.LENGTH_SHORT).show()
+                                    }
+                                    finish()
+                                },
+                                onBack = { finish() }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -83,9 +142,11 @@ class LandmarkDetailsActivity : ComponentActivity() {
                 name = landmarkData.name,
                 imageUri = persistentImageUri,
                 location = landmarkData.location,
-                architect = landmarkData.architect,
                 architectureStyle = landmarkData.architectureStyle,
-                yearBuilt = landmarkData.yearBuilt
+                yearBuilt = landmarkData.yearBuilt,
+                height = landmarkData.height,
+                description = landmarkData.description,
+                interestingFacts = landmarkData.interestingFacts
             )
 
             // Add to history and show a log for debugging
@@ -127,35 +188,6 @@ class LandmarkDetailsActivity : ComponentActivity() {
             Log.e("LandmarkDetailsActivity", "Failed to save image", e)
             return uri.toString() // Fallback to original URI if saving fails
         }
-    }
-
-    // Return hardcoded data based on the landmark name
-    // In a real app, you would have different data for different landmarks
-    private fun getLandmarkData(name: String): LandmarkData {
-        // For now, just return Eiffel Tower data
-        return LandmarkData(
-            name = "Eiffel Tower",
-            location = "Paris, France",
-            architect = "Gustave Eiffel",
-            architectureStyle = "Structural Expressionism / Modern Architecture",
-            yearBuilt = "1889",
-            height = "330 meters (1,083 feet)",
-            description = "The Eiffel Tower is a wrought-iron lattice tower located on the Champ de Mars in Paris. " +
-                    "It is one of the most recognizable structures in the world and has become an iconic symbol of Paris and France. " +
-                    "It was originally built as the entrance arch for the 1889 World's Fair.\n\n" +
-                    "The tower features an innovative design with exposed structural elements, showcasing the beauty of its engineering. " +
-                    "It represents early modern architecture where the structure itself becomes the aesthetic rather than being hidden. " +
-                    "Its distinctive shape with four curved lattice legs anchored into concrete foundations was revolutionary for its time.\n\n" +
-                    "The tower is composed of 18,000 metallic parts joined together by 2.5 million rivets. It weighs 10,100 tons " +
-                    "but exerts less ground pressure than a person sitting in a chair.",
-            interestingFacts = listOf(
-                "The Eiffel Tower was initially criticized by many of France's leading artists and intellectuals for its design.",
-                "It was originally intended to be a temporary structure and was scheduled to be dismantled in 1909.",
-                "The tower shrinks by about 6 inches (15 cm) in cold weather due to thermal contraction of the metal.",
-                "The Eiffel Tower is repainted every 7 years, requiring 60 tons of paint.",
-                "There are 1,665 steps to the top of the tower, though visitors typically use elevators."
-            )
-        )
     }
 }
 
@@ -218,7 +250,6 @@ fun LandmarkDetailsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         InfoRow("Location", landmarkData.location)
-                        InfoRow("Architect", landmarkData.architect)
                         InfoRow("Architecture Style", landmarkData.architectureStyle)
                         InfoRow("Year Built", landmarkData.yearBuilt)
                         InfoRow("Height", landmarkData.height)
@@ -321,10 +352,10 @@ fun InfoRow(label: String, value: String) {
 data class LandmarkData(
     val name: String,
     val location: String,
-    val architect: String,
     val architectureStyle: String,
     val yearBuilt: String,
     val height: String,
     val description: String,
     val interestingFacts: List<String>
 )
+
