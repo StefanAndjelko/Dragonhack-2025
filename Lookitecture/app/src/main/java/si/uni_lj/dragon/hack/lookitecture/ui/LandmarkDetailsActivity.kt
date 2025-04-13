@@ -42,11 +42,13 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.UUID
-
+import si.uni_lj.dragon.hack.lookitecture.util.LandmarksJsonUtil
 // Define our brand color
 val LookitectureGreen = Color(0xff8AADC3)
 
 class LandmarkDetailsActivity : ComponentActivity() {
+    
+    private val TAG = "LandmarkDetailsActivity"
     
     // Track bookmarked landmarks
     companion object {
@@ -65,6 +67,8 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
         // Get the landmark name from the intent - no longer use a hardcoded default
         val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: ""
+        
+        Log.d(TAG, "Starting activity for landmark: $landmarkName (from history: $fromHistory)")
 
         setContent {
             MaterialTheme(
@@ -107,25 +111,56 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                             interestingFacts = historyData.interestingFacts,
                                             coordinates = Pair(0.0, 0.0) // Default coordinates
                                         )
-                                        Log.d("LandmarkDetailsActivity", "Loaded from history: ${historyData.name}")
+                                        Log.d(TAG, "Loaded from history: ${historyData.name}")
                                     } else {
-                                        // Fall back to API if not found in history
-                                        Log.d("LandmarkDetailsActivity", "Not found in history, fetching from API: $landmarkName")
-                                        val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
-                                        // API data already includes coordinates
-                                        landmarkData = apiData
-                                        Log.d("LandmarkDetailsActivity", "Got API data with coordinates: ${apiData.coordinates}")
+                                        // Fall back to local JSON if not found in history
+                                        Log.d(TAG, "Not found in history, trying local JSON: $landmarkName")
+                                        val jsonData = LandmarksJsonUtil.getLandmarkFromLocalJson(
+                                            this@LandmarkDetailsActivity, 
+                                            landmarkName
+                                        )
+                                        
+                                        if (jsonData != null) {
+                                            landmarkData = jsonData
+                                            Log.d(TAG, "Loaded from local JSON: ${jsonData.name}")
+                                        } else {
+                                            // Finally try API if not in local JSON
+                                            try {
+                                                Log.d(TAG, "Not found in local JSON, trying API: $landmarkName")
+                                                val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                                landmarkData = apiData
+                                                Log.d(TAG, "Got API data: ${apiData.name}")
+                                            } catch (e: Exception) {
+                                                throw e // Re-throw if API also failed
+                                            }
+                                        }
                                     }
                                 } else {
-                                    // New capture - get landmark data from API
-                                    Log.d("LandmarkDetailsActivity", "Fetching from API: $landmarkName")
-                                    val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
-                                    landmarkData = apiData
-                                    Log.d("LandmarkDetailsActivity", "Got API data with coordinates: ${apiData.coordinates}")
+                                    // New capture - first try local JSON before API for better reliability
+                                    Log.d(TAG, "New capture - trying local JSON first: $landmarkName")
+                                    val jsonData = LandmarksJsonUtil.getLandmarkFromLocalJson(
+                                        this@LandmarkDetailsActivity,
+                                        landmarkName
+                                    )
+                                    
+                                    if (jsonData != null) {
+                                        landmarkData = jsonData
+                                        Log.d(TAG, "Loaded from local JSON: ${jsonData.name} with coords: ${jsonData.coordinates}")
+                                    } else {
+                                        // Try API if not in local JSON
+                                        try {
+                                            Log.d(TAG, "Not found in local JSON, trying API: $landmarkName")
+                                            val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                            landmarkData = apiData
+                                            Log.d(TAG, "Got API data: ${apiData.name}")
+                                        } catch (e: Exception) {
+                                            throw e // Re-throw if API also failed
+                                        }
+                                    }
                                 }
                             } catch (e: Exception) {
-                                Log.e("LandmarkDetailsActivity", "Error fetching landmark data", e)
-                                // Fallback to basic data if API fails
+                                Log.e(TAG, "Error fetching landmark data", e)
+                                // Fallback to basic data if everything fails
                                 landmarkData = LandmarkData(
                                     name = landmarkName,
                                     location = "Information unavailable",
@@ -185,13 +220,15 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
     private fun openMap(latitude: Double, longitude: Double, landmarkName: String) {
         try {
-            Log.d("LandmarkDetailsActivity", "Opening map with coordinates: lat=$latitude, lng=$longitude")
+            Log.d(TAG, "Opening map with coordinates: lat=$latitude, lng=$longitude")
             
             // Use URI encoding for the landmark name to handle special characters
             val encodedName = java.net.URLEncoder.encode(landmarkName, "UTF-8")
             
             // Check if we have valid coordinates (not both 0,0)
-            val useCoordinates = latitude != 0.0 || longitude != 0.0
+            val useCoordinates = !(latitude == 0.0 && longitude == 0.0)
+            
+            Log.d(TAG, "Using coordinates: $useCoordinates")
             
             // If we don't have coordinates, just search by name
             val gmmIntentUri = if (useCoordinates) {
@@ -206,9 +243,11 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
             // Check if Google Maps is installed
             if (mapIntent.resolveActivity(packageManager) != null) {
+                Log.d(TAG, "Opening Google Maps app")
                 startActivity(mapIntent)
             } else {
                 // Fallback to browser if Google Maps isn't installed
+                Log.d(TAG, "Google Maps not installed, opening browser")
                 val browserUri = if (useCoordinates) {
                     Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
                 } else {
@@ -218,6 +257,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
                 startActivity(browserIntent)
             }
         } catch (e: Exception) {
+
             Log.e("LandmarkDetailsActivity", "Error opening map", e)
         }
     }
@@ -742,7 +782,12 @@ fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = value,
+                // Make sure we never display "null" as text
+                text = when {
+                    value.isNullOrBlank() -> "Information unavailable"
+                    value.equals("null", ignoreCase = true) -> "Information unavailable"
+                    else -> value
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
