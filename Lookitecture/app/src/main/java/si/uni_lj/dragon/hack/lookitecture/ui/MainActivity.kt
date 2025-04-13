@@ -5,6 +5,8 @@ import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -140,6 +143,14 @@ fun PhotoCaptureScreen(
         // If the photo was taken successfully, update the displayed image
         if (success && currentCameraUri != null) {
             selectedImageUri = currentCameraUri
+            val source = ImageDecoder.createSource(context.contentResolver, currentCameraUri!!)
+            val bitmap = ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+                decoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_DEFAULT)
+                decoder.setTargetColorSpace(android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB))
+            }
+            val argbBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            imageClassifierHelper.classify(argbBitmap, android.view.Surface.ROTATION_0)
         }
     }
 
