@@ -70,3 +70,6 @@ Your **personal, on-the-go tourist guide**, powered by AI and offline capability
 - [Gemini LLM](https://deepmind.google/technologies/gemini/)
 - The wonderful open-source libraries and APIs we relied on to build Lookitecture 💙
 
+## Disclaimer
+- If you try running the app, you might not get full functionality because the app uses the Gemini API.
+
