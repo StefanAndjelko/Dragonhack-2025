@@ -44,7 +44,7 @@ import java.io.IOException
 import java.util.UUID
 
 // Define our brand color
-val LookitectureGreen = Color(0xFF459282)
+val LookitectureGreen = Color(0xfffa7850)
 
 class LandmarkDetailsActivity : ComponentActivity() {
     
