@@ -179,13 +179,25 @@ object LandmarkApiService {
                 // Add default facts if missing
                 interestingFacts.add("No interesting facts available.")
             }
+            
+            // Properly handle null/empty height values
+            val height = if (jsonObject.has("height") && !jsonObject.isNull("height")) {
+                val heightValue = jsonObject.optString("height", "")
+                if (heightValue.equals("null", ignoreCase = true) || heightValue.isEmpty()) {
+                    "Information unavailable"
+                } else {
+                    heightValue
+                }
+            } else {
+                "Information unavailable"
+            }
 
             return LandmarkData(
                 name = officialName,
                 location = location,
                 architectureStyle = jsonObject.optString("architectureStyle", "Unknown style"),
                 yearBuilt = jsonObject.optString("yearBuilt", "Unknown year"),
-                height = jsonObject.optString("height", "Unknown height"),
+                height = height,
                 description = jsonObject.optString("description",
                     "No description available for this landmark."),
                 interestingFacts = interestingFacts,
@@ -280,3 +292,4 @@ object LandmarkApiService {
         )
     }
 }
+

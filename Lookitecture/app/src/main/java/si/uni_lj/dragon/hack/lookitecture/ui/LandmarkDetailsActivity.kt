@@ -744,7 +744,12 @@ fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = value,
+                // Make sure we never display "null" as text
+                text = when {
+                    value.isNullOrBlank() -> "Information unavailable"
+                    value.equals("null", ignoreCase = true) -> "Information unavailable"
+                    else -> value
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
