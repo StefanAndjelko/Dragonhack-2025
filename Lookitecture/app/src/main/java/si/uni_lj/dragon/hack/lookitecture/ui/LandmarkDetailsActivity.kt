@@ -52,7 +52,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
     companion object {
         private val bookmarkedLandmarks = mutableSetOf<String>()
     }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -62,7 +62,9 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
         // Check if coming from history or new capture
         val fromHistory = intent.getBooleanExtra("FROM_HISTORY", false)
-        val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: "Great Wall of China"
+
+        // Get the landmark name from the intent - no longer use a hardcoded default
+        val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: ""
 
         setContent {
             MaterialTheme(
@@ -80,7 +82,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
                     var landmarkData by remember { mutableStateOf<LandmarkData?>(null) }
                     var isLoading by remember { mutableStateOf(true) }
                     val coroutineScope = rememberCoroutineScope()
-                    
+
                     // Load data from history or API as appropriate
                     LaunchedEffect(landmarkName) {
                         isLoading = true
@@ -89,10 +91,10 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                 if (fromHistory) {
                                     // First try to get data from history
                                     val historyData = LandmarkHistoryManager.getLandmarkFromHistory(
-                                        this@LandmarkDetailsActivity, 
+                                        this@LandmarkDetailsActivity,
                                         landmarkName
                                     )
-                                    
+
                                     if (historyData != null) {
                                         // Convert history data to landmark data
                                         landmarkData = LandmarkData(
@@ -117,6 +119,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                     }
                                 } else {
                                     // New capture - get landmark data from API
+                                    Log.d("LandmarkDetailsActivity", "Fetching from API: $landmarkName")
                                     val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
                                     // Enhanced with coordinates
                                     landmarkData = apiData.copy(
@@ -192,18 +195,36 @@ class LandmarkDetailsActivity : ComponentActivity() {
             "Statue of Liberty" -> Pair(40.6892, -74.0445)
             "Taj Mahal" -> Pair(27.1751, 78.0421)
             "Colosseum" -> Pair(41.8902, 12.4922)
-            else -> Pair(0.0, 0.0) // Default
+            // Add more landmark coordinates
+            "Sydney Opera House" -> Pair(-33.8568, 151.2153)
+            "Burj Khalifa" -> Pair(25.1972, 55.2744)
+            "Empire State Building" -> Pair(40.7484, -73.9857)
+            "Leaning Tower of Pisa" -> Pair(43.7230, 10.3966)
+            "Machu Picchu" -> Pair(-13.1631, -72.5450)
+            else -> Pair(0.0, 0.0) // Default - will still open maps at (0,0)
         }
     }
 
     private fun openMap(latitude: Double, longitude: Double, landmarkName: String) {
         try {
-            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($landmarkName)")
+            // Use URI encoding for the landmark name to handle special characters
+            val encodedName = java.net.URLEncoder.encode(landmarkName, "UTF-8")
+            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($encodedName)")
             val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
             mapIntent.setPackage("com.google.android.apps.maps")
-            startActivity(mapIntent)
+
+            // Check if Google Maps is installed
+            if (mapIntent.resolveActivity(packageManager) != null) {
+                startActivity(mapIntent)
+            } else {
+                // Fallback to browser if Google Maps isn't installed
+                val browserUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+                val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
+                startActivity(browserIntent)
+            }
         } catch (e: Exception) {
-            Toast.makeText(this, "Map application not found", Toast.LENGTH_SHORT).show()
+            Log.e("LandmarkDetailsActivity", "Error opening map", e)
+            Toast.makeText(this, "Could not open map application", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -220,7 +241,7 @@ class LandmarkDetailsActivity : ComponentActivity() {
         try {
             // Copy image to internal storage for persistence
             val persistentImageUri = saveImageToInternalStorage(Uri.parse(imageUriString))
-            
+
             val historyData = HistoryLandmarkData(
                 name = landmarkData.name,
                 imageUri = persistentImageUri,
@@ -255,18 +276,18 @@ class LandmarkDetailsActivity : ComponentActivity() {
             // Create a unique filename
             val filename = "landmark_${UUID.randomUUID()}.jpg"
             val file = File(filesDir, filename)
-            
+
             // Copy the image to internal storage
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(file).use { output ->
                     input.copyTo(output)
                 }
             }
-            
+
             // Return the file path as a string
             Log.d("LandmarkDetailsActivity", "Image saved to: ${file.absolutePath}")
             return file.absolutePath
-            
+
         } catch (e: IOException) {
             Log.e("LandmarkDetailsActivity", "Failed to save image", e)
             return uri.toString() // Fallback to original URI if saving fails
@@ -286,7 +307,7 @@ fun LoadingAnimation(modifier: Modifier = Modifier) {
         ),
         label = "pulse"
     )
-    
+
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -295,7 +316,7 @@ fun LoadingAnimation(modifier: Modifier = Modifier) {
         ),
         label = "rotate"
     )
-    
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         CircularProgressIndicator(
             modifier = Modifier
@@ -304,7 +325,7 @@ fun LoadingAnimation(modifier: Modifier = Modifier) {
             color = LookitectureGreen,
             strokeWidth = 8.dp
         )
-        
+
         Text(
             text = "Loading landmark info...",
             style = MaterialTheme.typography.bodyLarge,
@@ -332,9 +353,9 @@ fun LandmarkDetailsScreen(
     val context = LocalContext.current
     var currentIsBookmarked by remember { mutableStateOf(isBookmarked) }
     var showMapPreview by remember { mutableStateOf(false) }
-    
+
     val imageScale = remember { Animatable(0.8f) }
-    
+
     LaunchedEffect(true) {
         imageScale.animateTo(
             targetValue = 1.0f,
@@ -348,17 +369,17 @@ fun LandmarkDetailsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         landmarkData.name,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.Rounded.ArrowBack, 
+                            Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White
                         )
@@ -366,14 +387,14 @@ fun LandmarkDetailsScreen(
                 },
                 actions = {
                     // Bookmark button with animation
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         currentIsBookmarked = !currentIsBookmarked
                         onToggleBookmark(landmarkData.name, currentIsBookmarked)
                     }) {
                         Icon(
-                            imageVector = if (currentIsBookmarked) 
-                                            Icons.Filled.Bookmark 
-                                         else 
+                            imageVector = if (currentIsBookmarked)
+                                            Icons.Filled.Bookmark
+                                         else
                                             Icons.Filled.BookmarkBorder,
                             contentDescription = "Bookmark",
                             tint = Color.White,
@@ -382,9 +403,9 @@ fun LandmarkDetailsScreen(
                                 .animateContentSize()
                         )
                     }
-                    
+
                     // Share button
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         onShareLandmark(landmarkData.name, landmarkData.description)
                     }) {
                         Icon(
@@ -425,7 +446,7 @@ fun LandmarkDetailsScreen(
                             .scale(imageScale.value),
                         contentScale = ContentScale.Crop
                     )
-                    
+
                     // Gradient overlay for better text visibility
                     Box(
                         modifier = Modifier
@@ -441,7 +462,7 @@ fun LandmarkDetailsScreen(
                                 )
                             )
                     )
-                    
+
                     // Location badge at the bottom
                     Box(
                         modifier = Modifier
@@ -499,54 +520,52 @@ fun LandmarkDetailsScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        
+
                         Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        
+
                         InfoRow(
                             icon = Icons.Filled.Architecture,
-                            label = "Architecture Style", 
+                            label = "Architecture Style",
                             value = landmarkData.architectureStyle
                         )
                         InfoRow(
                             icon = Icons.Filled.CalendarToday,
-                            label = "Year Built", 
+                            label = "Year Built",
                             value = landmarkData.yearBuilt
                         )
                         InfoRow(
                             icon = Icons.Filled.Height,
-                            label = "Height", 
+                            label = "Height",
                             value = landmarkData.height
                         )
-                        
-                        // Map button if coordinates are available
-                        if (landmarkData.coordinates.first != 0.0 && landmarkData.coordinates.second != 0.0) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { 
-                                    onOpenMap(
-                                        landmarkData.coordinates.first, 
-                                        landmarkData.coordinates.second,
-                                        landmarkData.name
-                                    ) 
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = LookitectureGreen
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(vertical = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Map,
-                                    contentDescription = "Map",
-                                    modifier = Modifier.padding(end = 8.dp)
+
+                        // Always show map button - we'll open map even with default coordinates
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                onOpenMap(
+                                    landmarkData.coordinates.first,
+                                    landmarkData.coordinates.second,
+                                    landmarkData.name
                                 )
-                                Text(
-                                    "View on Map",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LookitectureGreen
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Map,
+                                contentDescription = "Map",
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                "View on Map",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -573,7 +592,7 @@ fun LandmarkDetailsScreen(
                             color = LookitectureGreen,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -606,7 +625,7 @@ fun LandmarkDetailsScreen(
                             color = LookitectureGreen,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -638,7 +657,7 @@ fun LandmarkDetailsScreen(
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
-                            
+
                             if (index < landmarkData.interestingFacts.size - 1) {
                                 Spacer(modifier = Modifier.height(4.dp))
                             }
