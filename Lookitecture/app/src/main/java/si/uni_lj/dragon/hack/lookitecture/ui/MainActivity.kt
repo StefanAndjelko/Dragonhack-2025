@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -197,14 +198,14 @@ fun PhotoCaptureScreen(
         uri?.let { selectedImageUri = it }
     }
 
+    val orientation = LocalConfiguration.current.orientation
     LaunchedEffect(selectedImageUri) {
         // You can place your logic here, such as logging or updating some other state
         if (selectedImageUri != null) {
-//            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, currentCameraUri)
             val source = ImageDecoder.createSource(context.contentResolver, selectedImageUri!!)
-            val asd = ImageDecoder.decodeBitmap(source)
-            val argbBitmap = asd.copy(Bitmap.Config.ARGB_8888, true)
-            imageClassifierHelper.classify(argbBitmap, android.view.Surface.ROTATION_0)
+            val bitmap = ImageDecoder.decodeBitmap(source)
+            val argbBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            imageClassifierHelper.classify(argbBitmap, orientation)
         }
     }
 

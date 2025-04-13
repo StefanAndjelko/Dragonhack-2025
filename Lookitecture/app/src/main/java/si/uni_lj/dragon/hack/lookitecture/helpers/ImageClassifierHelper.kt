@@ -56,7 +56,7 @@ class ImageClassifierHelper(
 
         optionsBuilder.setBaseOptions(baseOptionsBuilder.build())
 
-        val modelName = "lookitechturenet.tflite"
+        val modelName = "lookitecture_model.tflite"
 
         try {
             imageClassifier =
