@@ -177,7 +177,6 @@ fun PhotoCaptureScreen(
             context.startActivity(intent)
         } catch (e: Exception) {
             Log.e("MainActivity", "Error navigating to history", e)
-            Toast.makeText(context, "Error opening history", Toast.LENGTH_SHORT).show()
         }
     }
 
