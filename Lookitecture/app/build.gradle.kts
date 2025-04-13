@@ -88,4 +88,14 @@ dependencies {
     // Import the GPU delegate plugin Library for GPU inference
     implementation ("org.tensorflow:tensorflow-lite-gpu-delegate-plugin:0.4.0")
     implementation ("org.tensorflow:tensorflow-lite-gpu:2.9.0")
+    
+    implementation ("com.google.code.gson:gson:2.10.1")
+
+    implementation ("androidx.compose.material:material-icons-extended:1.4.3")
+
+    // Add to app/build.gradle dependencies
+    implementation ("com.github.bumptech.glide:glide:4.15.1")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.15.1")
+
+    implementation ("androidx.room:room-ktx:2.5.2")
 }

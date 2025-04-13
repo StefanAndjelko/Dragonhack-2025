@@ -1,19 +1,5 @@
 package si.uni_lj.dragon.hack.lookitecture.ui
 
-import android.animation.ObjectAnimator
-import android.os.Bundle
-import android.view.View
-import android.view.animation.AnticipateInterpolator
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.animation.doOnEnd
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -21,12 +7,21 @@ import android.content.pm.PackageManager
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.provider.MediaStore
+import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -94,6 +90,7 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
             }
         }
     }
+}
 
     override fun onResults(results: List<Classifications>?, inferenceTime: Long) {
         val topResult = results?.firstOrNull()?.categories?.firstOrNull()
@@ -113,6 +110,7 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
  * Screen that allows users to capture or upload photos
  * Displays the selected image in high quality
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoCaptureScreen(
     imageClassifierHelper: ImageClassifierHelper,
@@ -135,7 +133,6 @@ fun PhotoCaptureScreen(
         )
     }
 
-    // ---- ACTIVITY LAUNCHERS ----
     // Launcher for taking photos with the camera
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -160,6 +157,17 @@ fun PhotoCaptureScreen(
             putExtra("IMAGE_URI", imageUri.toString())
         }
         context.startActivity(intent)
+    }
+
+    // Navigate to history
+    fun navigateToHistory() {
+        try {
+            val intent = Intent(context, HistoryActivity::class.java)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error navigating to history", e)
+            Toast.makeText(context, "Error opening history", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Launcher for requesting camera permission
@@ -236,7 +244,44 @@ fun PhotoCaptureScreen(
                 ImagePlaceholder()
             }
         }
-
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Image display area - With click to navigate
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.LightGray.copy(alpha = 0.2f))
+                    .border(
+                        width = 1.dp,
+                        color = Color.LightGray,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable(
+                        enabled = selectedImageUri != null,
+                        onClick = {
+                            selectedImageUri?.let { navigateToLandmarkDetails(it) }
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selectedImageUri != null) {
+                    // Display the selected image
+                    Image(
+                        painter = rememberAsyncImagePainter(model = selectedImageUri),
+                        contentDescription = "Selected Image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
         // Action buttons
         ActionButtons(onTakePhotoClick = { // Check for camera permission before taking photo
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -296,31 +341,44 @@ fun ImagePlaceholder() {
  */
 @Composable
 fun ActionButtons(
-    onTakePhotoClick: () -> Unit, onUploadPhotoClick: () -> Unit
+    onTakePhotoClick: () -> Unit,
+    onUploadPhotoClick: () -> Unit,
+    onViewHistoryClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly
-    ) { // Take Photo button
-        Button(
-            onClick = onTakePhotoClick, modifier = Modifier
-                .weight(1f)
-                .height(56.dp)
-                .padding(end = 8.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Camera and gallery buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text("Take Photo")
+            // Take Photo button
+            Button(
+                onClick = onTakePhotoClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .padding(end = 8.dp)
+            ) {
+                Text("Take Photo")
+            }
+
+            // Upload Photo button
+            Button(
+                onClick = onUploadPhotoClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .padding(start = 8.dp)
+            ) {
+                Text("Upload Photo")
+            }
         }
 
-        // Upload Photo button
-        Button(
-            onClick = onUploadPhotoClick, modifier = Modifier
-                .weight(1f)
-                .height(56.dp)
-                .padding(start = 8.dp)
-        ) {
-            Text("Upload Photo")
-        }
     }
 }
 
