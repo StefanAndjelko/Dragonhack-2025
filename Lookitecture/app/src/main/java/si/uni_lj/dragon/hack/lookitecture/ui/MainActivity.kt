@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.view.animation.AnticipateInterpolator
@@ -32,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -143,14 +143,6 @@ fun PhotoCaptureScreen(
         // If the photo was taken successfully, update the displayed image
         if (success && currentCameraUri != null) {
             selectedImageUri = currentCameraUri
-            val source = ImageDecoder.createSource(context.contentResolver, currentCameraUri!!)
-            val bitmap = ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
-                decoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_DEFAULT)
-                decoder.setTargetColorSpace(android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB))
-            }
-            val argbBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-            imageClassifierHelper.classify(argbBitmap, android.view.Surface.ROTATION_0)
         }
     }
 
@@ -196,6 +188,17 @@ fun PhotoCaptureScreen(
     ) { uri ->
         // Update the displayed image with the selected gallery image
         uri?.let { selectedImageUri = it }
+    }
+
+    LaunchedEffect(selectedImageUri) {
+        // You can place your logic here, such as logging or updating some other state
+        if (selectedImageUri != null) {
+//            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, currentCameraUri)
+            val source = ImageDecoder.createSource(context.contentResolver, selectedImageUri!!)
+            val asd = ImageDecoder.decodeBitmap(source)
+            val argbBitmap = asd.copy(Bitmap.Config.ARGB_8888, true)
+            imageClassifierHelper.classify(argbBitmap, android.view.Surface.ROTATION_0)
+        }
     }
 
     // ---- UI ----
