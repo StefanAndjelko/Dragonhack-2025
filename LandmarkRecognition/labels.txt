@@ -1,0 +1,9 @@
+bled_island
+eiffel_tower
+golden_gate_bridge
+grand_canyon
+machu_picchu
+niagara_falls
+presern_square
+stonehenge
+sydney_opera_house
