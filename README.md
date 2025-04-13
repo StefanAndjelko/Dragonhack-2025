@@ -61,8 +61,6 @@ Your **personal, on-the-go tourist guide**, powered by AI and offline capability
 ![Screenshot](Images/information.png)
 ![Screenshot](Images/history.png)
 
-*Coming soon!*
-
 ## Acknowledgements
 
 - [TensorFlow Lite](https://www.tensorflow.org/lite)
