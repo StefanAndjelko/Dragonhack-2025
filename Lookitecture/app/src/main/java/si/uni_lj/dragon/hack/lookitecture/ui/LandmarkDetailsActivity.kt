@@ -1,27 +1,38 @@
 package si.uni_lj.dragon.hack.lookitecture.ui
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 import si.uni_lj.dragon.hack.lookitecture.services.LandmarkApiService
@@ -32,7 +43,16 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.UUID
 
+// Define our brand color
+val LookitectureGreen = Color(0xFF459282)
+
 class LandmarkDetailsActivity : ComponentActivity() {
+    
+    // Track bookmarked landmarks
+    companion object {
+        private val bookmarkedLandmarks = mutableSetOf<String>()
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -45,7 +65,13 @@ class LandmarkDetailsActivity : ComponentActivity() {
         val landmarkName = intent.getStringExtra("LANDMARK_NAME") ?: "Great Wall of China"
 
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = MaterialTheme.colorScheme.copy(
+                    primary = LookitectureGreen,
+                    secondary = LookitectureGreen.copy(alpha = 0.7f),
+                    tertiary = LookitectureGreen.copy(alpha = 0.5f)
+                )
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -76,17 +102,26 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                             yearBuilt = historyData.yearBuilt,
                                             height = historyData.height,
                                             description = historyData.description,
-                                            interestingFacts = historyData.interestingFacts
+                                            interestingFacts = historyData.interestingFacts,
+                                            coordinates = Pair(0.0, 0.0) // Default coordinates
                                         )
                                         Log.d("LandmarkDetailsActivity", "Loaded from history: ${historyData.name}")
                                     } else {
                                         // Fall back to API if not found in history
                                         Log.d("LandmarkDetailsActivity", "Not found in history, fetching from API: $landmarkName")
-                                        landmarkData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                        val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                        // Enhanced with coordinates
+                                        landmarkData = apiData.copy(
+                                            coordinates = getCoordinatesForLandmark(landmarkName)
+                                        )
                                     }
                                 } else {
                                     // New capture - get landmark data from API
-                                    landmarkData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                    val apiData = LandmarkApiService.getLandmarkInfo(landmarkName)
+                                    // Enhanced with coordinates
+                                    landmarkData = apiData.copy(
+                                        coordinates = getCoordinatesForLandmark(landmarkName)
+                                    )
                                 }
                             } catch (e: Exception) {
                                 Log.e("LandmarkDetailsActivity", "Error fetching landmark data", e)
@@ -98,7 +133,8 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                     yearBuilt = "Information unavailable",
                                     height = "Information unavailable",
                                     description = "Unable to load landmark information. Please check your internet connection.",
-                                    interestingFacts = listOf("Information unavailable")
+                                    interestingFacts = listOf("Information unavailable"),
+                                    coordinates = Pair(0.0, 0.0)
                                 )
                             } finally {
                                 isLoading = false
@@ -107,15 +143,26 @@ class LandmarkDetailsActivity : ComponentActivity() {
                     }
 
                     if (isLoading) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        }
+                        LoadingAnimation(modifier = Modifier.fillMaxSize())
                     } else {
                         landmarkData?.let { data ->
                             LandmarkDetailsScreen(
                                 imageUri = imageUri,
                                 landmarkData = data,
                                 fromHistory = fromHistory,
+                                isBookmarked = bookmarkedLandmarks.contains(data.name),
+                                onToggleBookmark = { name, isBookmarked ->
+                                    if (isBookmarked) {
+                                        bookmarkedLandmarks.add(name)
+                                        Toast.makeText(this@LandmarkDetailsActivity, "Landmark bookmarked", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        bookmarkedLandmarks.remove(name)
+                                        Toast.makeText(this@LandmarkDetailsActivity, "Bookmark removed", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onShareLandmark = { name, description ->
+                                    shareLandmarkInfo(name, description)
+                                },
                                 onSaveToHistory = {
                                     // Save to history when "Okay" is clicked
                                     if (imageUriString != null) {
@@ -124,13 +171,49 @@ class LandmarkDetailsActivity : ComponentActivity() {
                                     }
                                     finish()
                                 },
-                                onBack = { finish() }
+                                onBack = { finish() },
+                                onOpenMap = { lat, lng, name ->
+                                    openMap(lat, lng, name)
+                                }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun getCoordinatesForLandmark(landmarkName: String): Pair<Double, Double> {
+        // This would normally come from an API or database
+        // Using hardcoded values for demonstration
+        return when (landmarkName) {
+            "Eiffel Tower" -> Pair(48.8584, 2.2945)
+            "Great Wall of China" -> Pair(40.4319, 116.5704)
+            "Statue of Liberty" -> Pair(40.6892, -74.0445)
+            "Taj Mahal" -> Pair(27.1751, 78.0421)
+            "Colosseum" -> Pair(41.8902, 12.4922)
+            else -> Pair(0.0, 0.0) // Default
+        }
+    }
+
+    private fun openMap(latitude: Double, longitude: Double, landmarkName: String) {
+        try {
+            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($landmarkName)")
+            val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+            mapIntent.setPackage("com.google.android.apps.maps")
+            startActivity(mapIntent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Map application not found", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun shareLandmarkInfo(name: String, description: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Check out this landmark: $name")
+            putExtra(Intent.EXTRA_TEXT, "I discovered $name using Lookitecture!\n\n$description")
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share via"))
     }
 
     private fun saveLandmarkToHistory(landmarkData: LandmarkData, imageUriString: String) {
@@ -191,26 +274,129 @@ class LandmarkDetailsActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun LoadingAnimation(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loadingAnimation")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing)
+        ),
+        label = "rotate"
+    )
+    
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(
+            modifier = Modifier
+                .scale(scale)
+                .size(80.dp),
+            color = LookitectureGreen,
+            strokeWidth = 8.dp
+        )
+        
+        Text(
+            text = "Loading landmark info...",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .padding(top = 100.dp)
+                .animateContentSize(),
+            color = LookitectureGreen
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LandmarkDetailsScreen(
     imageUri: Uri?,
     landmarkData: LandmarkData,
     fromHistory: Boolean,
+    isBookmarked: Boolean,
+    onToggleBookmark: (String, Boolean) -> Unit,
+    onShareLandmark: (String, String) -> Unit,
     onSaveToHistory: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenMap: (Double, Double, String) -> Unit
 ) {
     val context = LocalContext.current
+    var currentIsBookmarked by remember { mutableStateOf(isBookmarked) }
+    var showMapPreview by remember { mutableStateOf(false) }
+    
+    val imageScale = remember { Animatable(0.8f) }
+    
+    LaunchedEffect(true) {
+        imageScale.animateTo(
+            targetValue = 1.0f,
+            animationSpec = tween(
+                durationMillis = 500,
+                easing = FastOutSlowInEasing
+            )
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(landmarkData.name) },
+                title = { 
+                    Text(
+                        landmarkData.name,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Rounded.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
-                }
+                },
+                actions = {
+                    // Bookmark button with animation
+                    IconButton(onClick = { 
+                        currentIsBookmarked = !currentIsBookmarked
+                        onToggleBookmark(landmarkData.name, currentIsBookmarked)
+                    }) {
+                        Icon(
+                            imageVector = if (currentIsBookmarked) 
+                                            Icons.Filled.Bookmark 
+                                         else 
+                                            Icons.Filled.BookmarkBorder,
+                            contentDescription = "Bookmark",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .scale(if (currentIsBookmarked) 1.2f else 1.0f)
+                                .animateContentSize()
+                        )
+                    }
+                    
+                    // Share button
+                    IconButton(onClick = { 
+                        onShareLandmark(landmarkData.name, landmarkData.description)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "Share",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = LookitectureGreen
+                )
             )
         }
     ) { paddingValues ->
@@ -221,131 +407,334 @@ fun LandmarkDetailsScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Display the image
-            imageUri?.let {
-                Image(
-                    painter = rememberAsyncImagePainter(it),
-                    contentDescription = landmarkData.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                        .padding(16.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit
-                )
+            // Display the image with animation and gradient overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .shadow(8.dp, RoundedCornerShape(16.dp))
+            ) {
+                imageUri?.let {
+                    Image(
+                        painter = rememberAsyncImagePainter(it),
+                        contentDescription = landmarkData.name,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(imageScale.value),
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    // Gradient overlay for better text visibility
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.3f)
+                                    ),
+                                    startY = 0f,
+                                    endY = 500f
+                                )
+                            )
+                    )
+                    
+                    // Location badge at the bottom
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(LookitectureGreen.copy(alpha = 0.8f))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Place,
+                                contentDescription = "Location",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = landmarkData.location,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
             }
 
-            // Content area
+            // Content area with enhanced styling
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                // Key information card
+                // Key information card with improved styling
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 4.dp
+                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        InfoRow("Location", landmarkData.location)
-                        InfoRow("Architecture Style", landmarkData.architectureStyle)
-                        InfoRow("Year Built", landmarkData.yearBuilt)
-                        InfoRow("Height", landmarkData.height)
+                        Text(
+                            text = "LANDMARK DETAILS",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LookitectureGreen,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        
+                        Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        InfoRow(
+                            icon = Icons.Filled.Architecture,
+                            label = "Architecture Style", 
+                            value = landmarkData.architectureStyle
+                        )
+                        InfoRow(
+                            icon = Icons.Filled.CalendarToday,
+                            label = "Year Built", 
+                            value = landmarkData.yearBuilt
+                        )
+                        InfoRow(
+                            icon = Icons.Filled.Height,
+                            label = "Height", 
+                            value = landmarkData.height
+                        )
+                        
+                        // Map button if coordinates are available
+                        if (landmarkData.coordinates.first != 0.0 && landmarkData.coordinates.second != 0.0) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { 
+                                    onOpenMap(
+                                        landmarkData.coordinates.first, 
+                                        landmarkData.coordinates.second,
+                                        landmarkData.name
+                                    ) 
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = LookitectureGreen
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Map,
+                                    contentDescription = "Map",
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    "View on Map",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Description
-                Text(
-                    text = "Description",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = landmarkData.description,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Interesting facts
-                Text(
-                    text = "Interesting Facts",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                landmarkData.interestingFacts.forEachIndexed { index, fact ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
+                // Description section with improved styling
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 4.dp
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "• ",
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = "ABOUT",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LookitectureGreen,
                             fontWeight = FontWeight.Bold
                         )
+                        
+                        Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Text(
-                            text = fact,
+                            text = landmarkData.description,
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // "Okay" button - Only show if not from history
+                // Interesting facts with improved styling
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 4.dp
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "INTERESTING FACTS",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LookitectureGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Divider(color = LookitectureGreen.copy(alpha = 0.2f), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        landmarkData.interestingFacts.forEachIndexed { index, fact ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(LookitectureGreen)
+                                        .align(Alignment.Top),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${index + 1}",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = fact,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            
+                            if (index < landmarkData.interestingFacts.size - 1) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                        }
+                    }
+                }
+
+                // Action button - Enhanced styling
                 if (!fromHistory) {
                     Button(
                         onClick = onSaveToHistory,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LookitectureGreen
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 6.dp,
+                            pressedElevation = 8.dp
+                        )
                     ) {
-                        Text("Okay, Save to History")
+                        Icon(
+                            Icons.Default.Save,
+                            contentDescription = "Save",
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            "Save to History",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } else {
                     Button(
                         onClick = onBack,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LookitectureGreen
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 6.dp,
+                            pressedElevation = 8.dp
+                        )
                     ) {
-                        Text("Back to History")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            "Back to History",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
+fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "$label: ",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = LookitectureGreen,
+            modifier = Modifier.size(24.dp)
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = LookitectureGreen,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 
@@ -356,6 +745,7 @@ data class LandmarkData(
     val yearBuilt: String,
     val height: String,
     val description: String,
-    val interestingFacts: List<String>
+    val interestingFacts: List<String>,
+    val coordinates: Pair<Double, Double> = Pair(0.0, 0.0)
 )
 
