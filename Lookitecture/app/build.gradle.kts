@@ -80,4 +80,14 @@ dependencies {
     implementation ("io.coil-kt:coil-compose:2.4.0")
     implementation ("androidx.activity:activity-compose:1.7.2")
     implementation ("androidx.compose.material3:material3:1.1.1")
+
+    implementation ("com.google.code.gson:gson:2.10.1")
+
+    implementation ("androidx.compose.material:material-icons-extended:1.4.3")
+
+    // Add to app/build.gradle dependencies
+    implementation ("com.github.bumptech.glide:glide:4.15.1")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.15.1")
+
+    implementation ("androidx.room:room-ktx:2.5.2")
 }
