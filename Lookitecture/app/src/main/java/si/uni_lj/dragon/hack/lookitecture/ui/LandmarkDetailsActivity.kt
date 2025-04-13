@@ -44,7 +44,7 @@ import java.io.IOException
 import java.util.UUID
 
 // Define our brand color
-val LookitectureGreen = Color(0xfffa7850)
+val LookitectureGreen = Color(0xff8AADC3)
 
 class LandmarkDetailsActivity : ComponentActivity() {
     
@@ -219,7 +219,6 @@ class LandmarkDetailsActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             Log.e("LandmarkDetailsActivity", "Error opening map", e)
-            Toast.makeText(this, "Could not open map application", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -258,7 +257,6 @@ class LandmarkDetailsActivity : ComponentActivity() {
 
         } catch (e: Exception) {
             Log.e("LandmarkDetailsActivity", "Error saving to history", e)
-            Toast.makeText(this, "Error saving to history", Toast.LENGTH_SHORT).show()
         }
     }
 
