@@ -8,18 +8,16 @@ import android.view.Surface
 import org.tensorflow.lite.gpu.CompatibilityList
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
-import org.tensorflow.lite.support.image.ops.Rot90Op
 import org.tensorflow.lite.task.core.BaseOptions
 import org.tensorflow.lite.task.core.vision.ImageProcessingOptions
 import org.tensorflow.lite.task.vision.classifier.Classifications
 import org.tensorflow.lite.task.vision.classifier.ImageClassifier
 
 class ImageClassifierHelper(
-    var threshold: Float = 0.5f,
+    var threshold: Float = 0.1f,
     var numThreads: Int = 2,
-    var maxResults: Int = 3,
+    var maxResults: Int = 9,
     var currentDelegate: Int = 0,
-    var currentModel: Int = 0,
     val context: Context,
     val imageClassifierListener: ClassifierListener?
 ) {
