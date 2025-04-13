@@ -38,6 +38,9 @@ android {
         buildConfig = true
         compose = true
     }
+    androidResources {
+        noCompress.add("tflite")
+    }
 }
 
 dependencies {
@@ -81,6 +84,11 @@ dependencies {
     implementation ("androidx.activity:activity-compose:1.7.2")
     implementation ("androidx.compose.material3:material3:1.1.1")
 
+    implementation ("org.tensorflow:tensorflow-lite-task-vision:0.4.0")
+    // Import the GPU delegate plugin Library for GPU inference
+    implementation ("org.tensorflow:tensorflow-lite-gpu-delegate-plugin:0.4.0")
+    implementation ("org.tensorflow:tensorflow-lite-gpu:2.9.0")
+    
     implementation ("com.google.code.gson:gson:2.10.1")
 
     implementation ("androidx.compose.material:material-icons-extended:1.4.3")
