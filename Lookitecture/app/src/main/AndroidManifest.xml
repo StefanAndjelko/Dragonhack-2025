@@ -31,13 +31,6 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.ApiTestActivity"
-            android:exported="false">
-        </activity>
-        <activity
-            android:name=".ui.SplashActivity"
-            android:exported="false"/>
-        <activity
             android:name=".ui.LandmarkDetailsActivity"
             android:exported="false"/>
         <activity
@@ -54,5 +47,9 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <service
+            android:name=".services.LandmarkRecognitionService"
+            android:exported="false" />
     </application>
 </manifest>

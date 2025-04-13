@@ -6,41 +6,81 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import si.uni_lj.dragon.hack.lookitecture.util.HistoryLandmarkData
 import si.uni_lj.dragon.hack.lookitecture.util.LandmarkHistoryManager
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Define the theme colors based on the provided color #459282
+val PrimaryColor = Color(0xFF459282)
+val LighterPrimaryColor = Color(0xFF5BA99A)
+val DarkerPrimaryColor = Color(0xFF367A6C)
+val BackgroundColor = Color(0xFFF9FCFB)
+val CardBackgroundColor = Color.White
+val SurfaceColor = Color(0xFFF5F9F8)
+val TextPrimaryColor = Color(0xFF212121)
+val TextSecondaryColor = Color(0xFF757575)
+val DividerColor = Color(0xFFEEEEEE)
+val ShadowColor = Color(0x1A000000)
+
 class HistoryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            // Custom theme with our primary color
+            MaterialTheme(
+                colorScheme = MaterialTheme.colorScheme.copy(
+                    primary = PrimaryColor,
+                    secondary = LighterPrimaryColor,
+                    tertiary = DarkerPrimaryColor,
+                    onPrimary = Color.White,
+                    background = BackgroundColor,
+                    surface = SurfaceColor,
+                    surfaceVariant = Color(0xFFE1EBE8)
+                )
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = BackgroundColor
                 ) {
                     HistoryScreen()
                 }
@@ -56,7 +96,6 @@ fun HistoryScreen() {
     val history = remember { mutableStateListOf<HistoryLandmarkData>() }
 
     var refreshKey by remember { mutableStateOf(0) }
-    // Show confirmation dialog for clearing history
     var showClearDialog by remember { mutableStateOf(false) }
 
     // Load history when the screen opens or when refreshed
@@ -77,92 +116,196 @@ fun HistoryScreen() {
         onDispose { }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Viewing History") },
-                navigationIcon = {
-                    IconButton(onClick = { context.startActivity(Intent(context, MainActivity::class.java)) }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showClearDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear History")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            if (history.isEmpty()) {
-                // Show empty state
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "No history yet",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.Gray
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Gradient background
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            BackgroundColor,
+                            Color(0xFFEEF5F3)
+                        )
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Landmarks you view will appear here",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.Gray
-                    )
-                }
-            } else {
-                // Show history list
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(
-                        items = history,
-                        key = { it.id }  // Use the unique ID as key for better list performance
-                    ) { landmark ->
-                        HistoryCard(landmark) {
-                            val intent = Intent(context, LandmarkDetailsActivity::class.java).apply {
-                                putExtra("IMAGE_URI", landmark.imageUri)
-                                putExtra("FROM_HISTORY", true)
-                                putExtra("LANDMARK_NAME", landmark.name)
-                            }
-                            context.startActivity(intent)
-                        }
-                    }
-                }
-            }
-
-            // Clear history confirmation dialog
-            if (showClearDialog) {
-                AlertDialog(
-                    onDismissRequest = { showClearDialog = false },
-                    title = { Text("Clear History") },
-                    text = { Text("Are you sure you want to clear all history?") },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                LandmarkHistoryManager.clearHistory(context)
-                                history.clear()
-                                showClearDialog = false
-                            }
-                        ) {
-                            Text("Clear")
+                )
+        )
+        
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            "Viewing History",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        ) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { context.startActivity(Intent(context, MainActivity::class.java)) }) {
+                            Icon(
+                                Icons.Default.ArrowBack, 
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
                         }
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showClearDialog = false }) {
-                            Text("Cancel")
+                    actions = {
+                        IconButton(onClick = { showClearDialog = true }) {
+                            Icon(
+                                Icons.Default.Delete, 
+                                contentDescription = "Clear History",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = PrimaryColor
+                    ),
+                    modifier = Modifier.shadow(elevation = 4.dp)
+                )
+            },
+            containerColor = Color.Transparent // Make scaffold background transparent
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+            ) {
+                if (history.isEmpty()) {
+                    // Enhanced empty state with animation
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .background(
+                                    color = PrimaryColor.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(60.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.History,
+                                contentDescription = null,
+                                modifier = Modifier.size(60.dp),
+                                tint = PrimaryColor
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text(
+                            text = "No History Yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = TextPrimaryColor,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = "Explore landmarks to see them appear here",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = TextSecondaryColor,
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(40.dp))
+                    }
+                } else {
+                    // Enhanced history list with smooth animations and spacing
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 24.dp)
+                    ) {
+                        itemsIndexed(
+                            items = history,
+                            key = { _, item -> item.id }
+                        ) { index, landmark ->
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = slideInVertically(
+                                    initialOffsetY = { 100 },
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                ) + fadeIn(
+                                    animationSpec = tween(300, delayMillis = index * 50)
+                                )
+                            ) {
+                                HistoryCard(landmark) {
+                                    val intent = Intent(context, LandmarkDetailsActivity::class.java).apply {
+                                        putExtra("IMAGE_URI", landmark.imageUri)
+                                        putExtra("FROM_HISTORY", true)
+                                        putExtra("LANDMARK_NAME", landmark.name)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
                         }
                     }
-                )
+                }
+
+                // Enhanced clear history confirmation dialog
+                if (showClearDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showClearDialog = false },
+                        title = { 
+                            Text(
+                                "Clear History", 
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimaryColor
+                            ) 
+                        },
+                        text = { 
+                            Text(
+                                "Are you sure you want to clear all history?",
+                                color = TextSecondaryColor
+                            ) 
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    LandmarkHistoryManager.clearHistory(context)
+                                    history.clear()
+                                    showClearDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryColor
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Clear All")
+                            }
+                        },
+                        dismissButton = {
+                            OutlinedButton(
+                                onClick = { showClearDialog = false },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = PrimaryColor
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Cancel")
+                            }
+                        },
+                        containerColor = Color.White,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
             }
         }
     }
@@ -173,20 +316,31 @@ fun HistoryCard(landmark: HistoryLandmarkData, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp)
+            .clickable(onClick = onClick)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = ShadowColor
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = CardBackgroundColor
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
         ) {
-            // Image thumbnail
+            // Image section
             Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .fillMaxWidth()
+                    .height(160.dp)
             ) {
+                // Image
                 landmark.imageUri?.let {
                     Image(
                         painter = rememberAsyncImagePainter(Uri.parse(it)),
@@ -195,80 +349,154 @@ fun HistoryCard(landmark: HistoryLandmarkData, onClick: () -> Unit) {
                         contentScale = ContentScale.Crop
                     )
                 } ?: run {
-                    // Use Surface instead of Box with background for Material3 compatibility
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color.LightGray
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(LighterPrimaryColor.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("No Image")
-                        }
+                        Text(
+                            "No Image Available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = DarkerPrimaryColor
+                        )
                     }
                 }
-            }
 
-            // Landmark details
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
+                // Gradient overlay at the bottom for text readability
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .height(80.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.6f)
+                                )
+                            )
+                        )
+                )
+
+                // Title overlay on the image
                 Text(
                     text = landmark.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    ),
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
 
-                Spacer(modifier = Modifier.height(4.dp))
+            // Details section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // Location with icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = PrimaryColor
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = landmark.location,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = TextPrimaryColor
+                    )
+                }
 
-                Text(
-                    text = landmark.location,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Architecture style with icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Style,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = PrimaryColor
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = landmark.architectureStyle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = TextPrimaryColor
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider(color = DividerColor)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Style: ${landmark.architectureStyle}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Format and display the timestamp in a more readable way
-                Text(
-                    text = "Viewed: ${formatTimestamp(landmark.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-
-                // Display formatted date and time in a more user-friendly way
-                Text(
-                    text = "Date: ${formatDate(landmark.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-
-                // Display time separately
-                Text(
-                    text = "Time: ${formatTime(landmark.timestamp)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                // Date and time section
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Date
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Rounded.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = TextSecondaryColor
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = formatDate(landmark.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondaryColor
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Time
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Rounded.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = TextSecondaryColor
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = formatTime(landmark.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondaryColor
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-/**
- * Formats a timestamp string into a more readable format
- */
+// ...existing code...
 private fun formatTimestamp(timestamp: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -281,32 +509,27 @@ private fun formatTimestamp(timestamp: String): String {
     }
 }
 
-/**
- * Formats just the date portion of a timestamp
- */
 private fun formatDate(timestamp: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val date = inputFormat.parse(timestamp) ?: return timestamp
 
-        val outputFormat = SimpleDateFormat("EEEE, MMMM dd, yyyy", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
         outputFormat.format(date)
     } catch (e: Exception) {
         timestamp
     }
 }
 
-/**
- * Formats just the time portion of a timestamp
- */
 private fun formatTime(timestamp: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val date = inputFormat.parse(timestamp) ?: return timestamp
 
-        val outputFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         outputFormat.format(date)
     } catch (e: Exception) {
         timestamp
     }
 }
+

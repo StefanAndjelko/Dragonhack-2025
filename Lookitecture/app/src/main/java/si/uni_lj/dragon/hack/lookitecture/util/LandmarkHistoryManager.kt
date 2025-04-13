@@ -121,18 +121,27 @@ object LandmarkHistoryManager {
         val cacheKey = context.packageName
         return historyCache[cacheKey]?.size ?: getHistory(context).size
     }
+
+    /**
+     * Gets landmark data from history by name, returns null if not found
+     */
+    fun getLandmarkFromHistory(context: Context, landmarkName: String): HistoryLandmarkData? {
+        return getHistory(context).find { it.name == landmarkName }
+    }
 }
 
 /**
- * Data class representing a landmark in history
+ * Data class representing a landmark in history with complete information
  */
 data class HistoryLandmarkData(
     val name: String,
     val imageUri: String?,
     val location: String,
-    val architect: String,
     val architectureStyle: String,
     val yearBuilt: String,
+    val height: String = "Information unavailable", // Added from LandmarkData
+    val description: String = "No description available", // Added from LandmarkData
+    val interestingFacts: List<String> = emptyList(), // Added from LandmarkData
     val timestamp: String = getCurrentTimestamp(),
     val id: String = UUID.randomUUID().toString()
 ) {
@@ -144,3 +153,4 @@ data class HistoryLandmarkData(
         }
     }
 }
+
