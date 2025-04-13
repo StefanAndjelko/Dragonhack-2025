@@ -58,7 +58,7 @@ class ImageClassifierHelper(
 
         optionsBuilder.setBaseOptions(baseOptionsBuilder.build())
 
-        val modelName = "mobilenetv1.tflite"
+        val modelName = "lookitechturenet.tflite"
 
         try {
             imageClassifier =
@@ -70,7 +70,6 @@ class ImageClassifierHelper(
             Log.e(TAG, "TFLite failed to load model with error: " + e.message)
         }
     }
-
     fun classify(image: Bitmap, rotation: Int) {
         if (imageClassifier == null) {
             setupImageClassifier()
