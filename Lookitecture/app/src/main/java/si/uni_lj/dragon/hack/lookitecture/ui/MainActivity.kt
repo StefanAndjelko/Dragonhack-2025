@@ -300,18 +300,6 @@ fun PhotoCaptureScreen(
                     navigateToHistory()
                 }
             )
-            if (classificationResult.isNotBlank()) {
-                AlertDialog(
-                    onDismissRequest = onClearResult,
-                    confirmButton = {
-                        TextButton(onClick = onClearResult) {
-                            Text("OK")
-                        }
-                    },
-                    title = { Text("Classification Result") },
-                    text = { Text(classificationResult) }
-                )
-            }
         }
     }
 }
