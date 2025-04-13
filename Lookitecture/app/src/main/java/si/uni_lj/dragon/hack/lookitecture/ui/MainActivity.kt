@@ -55,6 +55,7 @@ import si.uni_lj.dragon.hack.lookitecture.helpers.ImageClassifierHelper
 class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListener {
     private lateinit var imageClassifierHelper: ImageClassifierHelper
     private var classificationResult by mutableStateOf("")
+    private var detectedLandmarkName by mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         splashScreen.setOnExitAnimationListener { splashScreenView -> // Create your custom animation.
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
                     PhotoCaptureScreen(
                         imageClassifierHelper = imageClassifierHelper,
                         classificationResult = classificationResult,
+                        detectedLandmarkName = detectedLandmarkName,
                         onClearResult = { classificationResult = "" }
                     )
                 }
@@ -93,10 +95,13 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
 
     override fun onResults(results: List<Classifications>?, inferenceTime: Long) {
         val topResult = results?.firstOrNull()?.categories?.firstOrNull()
-        classificationResult = if (topResult != null) {
-            "Prediction: ${topResult.label} (${(topResult.score * 100).toInt()}%)\nTook ${inferenceTime}ms"
+        if (topResult != null) {
+            // Extract landmark name from the label
+            detectedLandmarkName = topResult.label
+            classificationResult = "Prediction: ${topResult.label} (${(topResult.score * 100).toInt()}%)\nTook ${inferenceTime}ms"
         } else {
-            "No results."
+            detectedLandmarkName = ""
+            classificationResult = "No results."
         }
     }
 
@@ -114,6 +119,7 @@ class MainActivity : ComponentActivity(), ImageClassifierHelper.ClassifierListen
 fun PhotoCaptureScreen(
     imageClassifierHelper: ImageClassifierHelper,
     classificationResult: String,
+    detectedLandmarkName: String,
     onClearResult: () -> Unit
 ) {
     // ---- STATE ----
@@ -158,6 +164,7 @@ fun PhotoCaptureScreen(
     fun navigateToLandmarkDetails(imageUri: Uri) {
         val intent = Intent(context, LandmarkDetailsActivity::class.java).apply {
             putExtra("IMAGE_URI", imageUri.toString())
+            putExtra("LANDMARK_NAME", detectedLandmarkName)
         }
         context.startActivity(intent)
     }
